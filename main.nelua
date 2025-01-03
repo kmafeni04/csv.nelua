@@ -1,67 +1,39 @@
-require "arg"
 require "io"
-require "os"
 
-local SEP = ","
+local Csv = @record{}
 
-if #arg == 0 then
-  io.stderr:write("Please provide a file\n")
-  os.exit(1)
-end
+function Csv.parse(file: string, delim: facultative(string), header: boolean)
 
-local file_path = arg[1]
-local file = io.open(file_path, "r")
+  local tbl: sequence(hashmap(string, string))
 
-if not file:isopen() then
-  io.stderr:write(("Failed to open file at path `%s`\n"):format(file_path))
-  os.exit(1)
-end
-
-if arg[2] == "--sep" then
-  if not arg[3] or arg[3] == "" then
-    io.stderr:write("Please provide a Seperator")
-    os.exit(1)
+  local content = io.open(file)
+  if not content:isopen() then
+    error(("Failed to open file: %s"):format(file))
   end
-  SEP = arg[3]
-end
+  ## if delim.type.is_niltype then
+    local actual_delim = ","
+  ## else
+    local actual_delim = delim
+  ## end
 
-local file_content = file:read("a")
-
-local rows: sequence(string)
-
-for row in file_content:gmatch(".-\n") do
-  rows:push(row)
-end
-
-local cols: sequence(string)
-
---[[
-  TODO: 
-    Rework the check for strings that contain `SEP` to make sure
-    it checks all string in the row
-]]
-for row_no, row in ipairs(rows) do
-  local sep_swap = ","
-  local contains_sep = false
-  local col_no = 1
-  for string in row:gmatch('%b""') do
-    if string:match("%" .. SEP) then
-      contains_sep = true
-      local find_start, find_end = row:find(string)
-      if sep_swap == SEP then
-        sep_swap = ";"
-      end
-      local new_string = string:gsub("%" .. SEP, sep_swap)
-      row = row:sub(1, find_start - 1) .. new_string .. row:sub(find_end + 1)
+  -- TODO: Handle headers
+  local line_no = 1
+  for line in content:lines() do
+    local col_no = 1
+    for col in line:gmatch(("[^%s]+"):format(actual_delim)) do
+      local row: hashmap(string, string)
+        row["column " .. col_no] = col
+      tbl:push(row)
+      col_no = col_no + 1
     end
+    line_no = line_no + 1
   end
-  for col in row:gmatch('[^%' .. SEP .. '\n]+') do
-    local actual_col_match, actual_col_seq = col:match("%s*(.+)%s*")
-    local actual_col = actual_col_seq[1]
-    if contains_sep then
-      actual_col = actual_col:gsub("%" .. sep_swap, SEP)
-    end
-    print("Row no: " .. row_no, "Col no: " .. col_no, "Col: " .. actual_col)
-    col_no = col_no + 1
+  return tbl
+end
+
+local tbl = Csv.parse("test-files/simple.csv")
+for _, row in ipairs(tbl) do
+  if row:has("column 1") then
+    print(row["column 1"])
   end
 end
