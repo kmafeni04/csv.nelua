@@ -26,27 +26,33 @@ function csv.parse(file: string, delim: facultative(string), header: boolean)
         end
       end
     end
+    local row: hashmap(string, string)
     for col in line:gmatch(("[^%s]+"):format(actual_delim)) do
-      local row: hashmap(string, string)
       if header then
         if line_no ~= 1 then
           row[headers[col_no]] = col
-          tbl:push(row)
         end
       else
         row["column " .. col_no] = col
-        tbl:push(row)
       end
       col_no = col_no + 1
+    end
+    if header then
+      if line_no ~= 1 then
+        tbl:push(row)
+      end
+    else
+      tbl:push(row)
     end
     line_no = line_no + 1
   end
   return tbl
 end
 
-local tbl = csv.parse("test-files/simple.csv", nil, false)
+local tbl = csv.parse("test-files/simple.csv", nil, true)
 for _, row in ipairs(tbl) do
-  if row:has("Name") then
-    print("Name: " .. row["Name"])
+  for k, v in pairs(row) do
+    print(k, v)
   end
+  print("---------")
 end
