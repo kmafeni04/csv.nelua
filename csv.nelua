@@ -2,32 +2,47 @@ require "io"
 
 global csv = @record{}
 
-function csv.parse(file: string, delim: facultative(string), header: boolean)
+local function parse(content: string, delim: facultative(string), header: boolean): sequence(hashmap(string, string))
   local tbl: sequence(hashmap(string, string))
 
-  local content = io.open(file)
-  if not content:isopen() then
-    error(("Failed to open file: %s"):format(file))
-  end
   ## if delim.type.is_niltype then
     local actual_delim = ","
   ## else
     local actual_delim = delim
   ## end
 
+  -- Unique set of characters to avoid accidental new line swaps
+  local NEW_LINE_SWAP <const> = "\\__n"
+
+  -- Unique set of characters to avoid accidental delim swaps
+  local DELIM_SWAP = "__;"
+  if DELIM_SWAP == actual_delim then
+    DELIM_SWAP = "__,"
+  end
+  for string in content:gmatch('%b""') do
+    local find_start, find_end = content:find(string)
+    string = string:gsub("\n", NEW_LINE_SWAP)
+    string = string:gsub("%" .. actual_delim, DELIM_SWAP)
+    content = content:sub(1, find_start - 1) .. string .. content:sub(find_end + 1)
+  end
+  
   local headers: sequence(string)
   local line_no = 1
-  for line in content:lines() do
+  for line in content:gmatch("[^\n]+") do
     local col_no = 1
     if header then
       if line_no == 1 then
         for col in line:gmatch(("[^%s]+"):format(actual_delim)) do
+          col = col:gsub(NEW_LINE_SWAP, "\n")
+          col = col:gsub(DELIM_SWAP, actual_delim)
           headers:push(col)
         end
       end
     end
     local row: hashmap(string, string)
     for col in line:gmatch(("[^%s]+"):format(actual_delim)) do
+      col = col:gsub(NEW_LINE_SWAP, "\n")
+      col = col:gsub(DELIM_SWAP, actual_delim)
       if header then
         if line_no ~= 1 then
           row[headers[col_no]] = col
@@ -49,10 +64,69 @@ function csv.parse(file: string, delim: facultative(string), header: boolean)
   return tbl
 end
 
-local tbl = csv.parse("test-files/simple.csv", nil, true)
-for _, row in ipairs(tbl) do
-  for k, v in pairs(row) do
-    print(k, v)
+function csv.parse_file(file: string, delim: facultative(string), header: boolean): sequence(hashmap(string, string))
+  local file_prog = io.open(file)
+  if not file_prog:isopen() then
+    error(("Failed to open file: %s"):format(file))
   end
-  print("---------")
+  local content = file_prog:read("a")
+  return parse(content, delim, header)
 end
+
+function csv.parse_string(content: string, delim: facultative(string), header: boolean): sequence(hashmap(string, string))
+  return parse(content, delim, header)
+end
+
+function csv.encode(tbl: sequence(hashmap(string, string)), header: boolean): string
+  local str: stringbuilder
+  if header then
+    for _, row in ipairs(tbl) do
+      for k in pairs(row) do
+        str:write(k .. ",")
+      end
+      str:rollback(1)
+      str:write("\n")
+      break
+    end
+    for i = 2, #tbl do
+      for _, v in pairs(tbl[i]) do
+        str:write(v .. ",")
+      end
+      str:rollback(1)
+      str:write("\n")
+    end
+  else
+    -- TODO: Handle when there are no headers
+    error("UNIMPLEMENTED")
+  end
+  return str:promote()
+end
+
+local tbl = csv.parse_file("test-files/quoted-fields.csv", nil, true)
+-- for _, row in ipairs(tbl) do
+--   for k, v in pairs(row) do
+--     print(k, v)
+--   end
+--   print("---------")
+-- end
+
+print()
+
+local test_str = [[
+Name|Age|City
+Alice|30|New York
+Bob|25|San Francisco
+Charlie|35|Chicago
+]]
+
+local tbl = csv.parse_string(test_str, "|", true)
+-- for _, row in ipairs(tbl) do
+--   for k, v in pairs(row) do
+--     print(k, v)
+--   end
+--   print("---------")
+-- end
+
+local str = csv.encode(tbl, true)
+
+print(str)
