@@ -77,56 +77,22 @@ function csv.parse_string(content: string, delim: facultative(string), header: b
   return parse(content, delim, header)
 end
 
-function csv.encode(tbl: sequence(hashmap(string, string)), header: boolean): string
-  local str: stringbuilder
-  if header then
-    for _, row in ipairs(tbl) do
-      for k in pairs(row) do
-        str:write(k .. ",")
+-- TODO: Handle empty fields better
+function csv.encode(tbl: span(span(string)), delim: facultative(string)): string
+  ## if delim.type.is_niltype then
+    local actual_delim = ","
+  ## else
+    local actual_delim = delim
+  ## end
+  local sb: stringbuilder
+  local row_length = #tbl[1]
+    for _, row in ipairs(tbl) do 
+      assert(row_length == #row, "Rows must contain the same amount of entries")
+      for _, v in pairs(row) do
+        sb:write(v .. actual_delim)
       end
-      str:rollback(1)
-      str:write("\n")
-      break
+      sb:rollback(1)
+      sb:write("\n")
     end
-    for i = 2, #tbl do
-      for _, v in pairs(tbl[i]) do
-        str:write(v .. ",")
-      end
-      str:rollback(1)
-      str:write("\n")
-    end
-  else
-    -- TODO: Handle when there are no headers
-    error("UNIMPLEMENTED")
-  end
-  return str:promote()
+  return sb:promote()
 end
-
-local tbl = csv.parse_file("test-files/quoted-fields.csv", nil, true)
--- for _, row in ipairs(tbl) do
---   for k, v in pairs(row) do
---     print(k, v)
---   end
---   print("---------")
--- end
-
-print()
-
-local test_str = [[
-Name|Age|City
-Alice|30|New York
-Bob|25|San Francisco
-Charlie|35|Chicago
-]]
-
-local tbl = csv.parse_string(test_str, "|", true)
--- for _, row in ipairs(tbl) do
---   for k, v in pairs(row) do
---     print(k, v)
---   end
---   print("---------")
--- end
-
-local str = csv.encode(tbl, true)
-
-print(str)
