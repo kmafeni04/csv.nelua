@@ -2,7 +2,12 @@ require "io"
 
 global csv = @record{}
 
-local function parse(content: string, delim: facultative(string), header: boolean): sequence(hashmap(string, string))
+local function trim_wspace(s: string)
+  local str_match, str_seq = s:match("%s*(.+)%s*")
+  return str_seq[1]
+end
+
+local function parse(content: string, delim: facultative(string), header: boolean): (boolean, sequence(hashmap(string, string)), string)
   local tbl: sequence(hashmap(string, string))
 
   ## if delim.type.is_niltype then
@@ -27,20 +32,29 @@ local function parse(content: string, delim: facultative(string), header: boolea
   end
   
   local headers: sequence(string)
+  local LINE_MATCH = ("[^%s]*%s"):format(actual_delim, actual_delim)
   local line_no = 1
   for line in content:gmatch("[^\n]+") do
+    line = line .. actual_delim
     local col_no = 1
     if header then
       if line_no == 1 then
-        for col in line:gmatch(("[^%s]+"):format(actual_delim)) do
+        for col in line:gmatch(LINE_MATCH) do
+          col = trim_wspace(col)
+          col = col:sub(1, #col - 1)
           col = col:gsub(NEW_LINE_SWAP, "\n")
           col = col:gsub(DELIM_SWAP, actual_delim)
+          if col == "" then
+            return false, tbl, "Cannot have empty headers" 
+          end
           headers:push(col)
         end
       end
     end
     local row: hashmap(string, string)
-    for col in line:gmatch(("[^%s]+"):format(actual_delim)) do
+    for col in line:gmatch(LINE_MATCH) do
+      col = trim_wspace(col)
+      col = col:sub(1, #col - 1)
       col = col:gsub(NEW_LINE_SWAP, "\n")
       col = col:gsub(DELIM_SWAP, actual_delim)
       if header then
@@ -48,7 +62,7 @@ local function parse(content: string, delim: facultative(string), header: boolea
           row[headers[col_no]] = col
         end
       else
-        row["column " .. col_no] = col
+        row["col" .. col_no] = col
       end
       col_no = col_no + 1
     end
@@ -61,19 +75,19 @@ local function parse(content: string, delim: facultative(string), header: boolea
     end
     line_no = line_no + 1
   end
-  return tbl
+  return true, tbl, ""
 end
 
-function csv.parse_file(file: string, delim: facultative(string), header: boolean): sequence(hashmap(string, string))
+function csv.parse_file(file: string, delim: facultative(string), header: boolean): (boolean, sequence(hashmap(string, string)), string)
   local file_prog = io.open(file)
   if not file_prog:isopen() then
-    error(("Failed to open file: %s"):format(file))
+    return false, (@sequence(hashmap(string, string)))({}), ("Failed to open file: %s"):format(file)
   end
   local content = file_prog:read("a")
   return parse(content, delim, header)
 end
 
-function csv.parse_string(content: string, delim: facultative(string), header: boolean): sequence(hashmap(string, string))
+function csv.parse_string(content: string, delim: facultative(string), header: boolean): (boolean, sequence(hashmap(string, string)), string)
   return parse(content, delim, header)
 end
 
