@@ -1,0 +1,83 @@
+require "os"
+
+require "..csv"
+
+local function trim_wspace(s: string)
+  local str_match, str_seq = s:match("%s*(.+)%s*")
+  return str_seq[1]
+end
+
+local function test_pass(expected: string, file_path: string, delim: facultative(string), header: boolean)
+  assert(trim_wspace(file_path) ~= "", "Provide a file path")
+
+  local ok, tbl, err = csv.parse_file(file_path, delim, header)
+  assert(ok, err)
+  local sb: stringbuilder
+  for _, row in ipairs(tbl) do
+    for k, col in pairs(row) do
+      sb:writef("%s: %s\n", k, col)
+    end
+    sb:write("-------\n")
+  end
+  local str = sb:promote()
+  assert(expected == str, ("Parsed output does not match expected\nEXPECTED:\n%s\nOUTPUT:\n%s"):format(expected, str))
+end
+
+local function test_fail(input_err: string, file_path: string, delim: facultative(string), header: boolean)
+  assert(trim_wspace(file_path) ~= "", "Provide a file path")
+
+  local ok, tbl, err = csv.parse_file(file_path, delim, header)
+  assert(not ok, "Test expected to fail")
+  assert(input_err == err, ("input err does not match expected err\nEXPECTED:\n%s\nINPUT:\n%s"):format(err, input_err))
+end
+
+-- Tests that should pass
+test_pass([[
+Name: Alice
+Age: 30
+City: New York
+-------
+Name: Bob
+Age: 25
+City: San Francisco
+-------
+Name: Charlie
+Age: 35
+City: Chicago
+-------
+]], "test-files/simple.csv", nil, true)
+
+test_pass([[
+Name: Alice
+Age: 30
+City: New York
+-------
+Name: Bob
+Age: 25
+City: San Francisco
+-------
+Name: Charlie
+Age: 35
+City: Chicago
+-------
+]], "test-files/different-sep.csv", "|", true)
+
+test_pass("", "test-files/headers-only.csv", nil, true)
+
+test_pass([[
+Name: Alice
+Age: 30
+City: 
+-------
+Name: Bob
+Age: 
+City: San Francisco
+-------
+Name: 
+Age: 35
+City: Chicago
+-------
+]], "test-files/missing-fields.csv", nil, true)
+
+-- Tests that should fail
+test_fail("Cannot have empty headers", "test-files/missing-header.csv", nil, true)
