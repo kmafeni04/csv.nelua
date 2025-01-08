@@ -7,6 +7,11 @@ local function trim_wspace(s: string)
   return str_seq[1]
 end
 
+local function escape_pattern(s: string)
+    local str = s:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+    return str
+end
+
 local function parse(content: string, delim: facultative(string), header: boolean): (boolean, sequence(hashmap(string, string)), string)
   local tbl: sequence(hashmap(string, string))
 
@@ -25,11 +30,27 @@ local function parse(content: string, delim: facultative(string), header: boolea
     DELIM_SWAP = "__,"
   end
   for string in content:gmatch('%b""') do
-    local find_start, find_end = content:find(string)
+    local find_start, find_end = content:find(escape_pattern(string))
     string = string:gsub("\n", NEW_LINE_SWAP)
     string = string:gsub("%" .. actual_delim, DELIM_SWAP)
     content = content:sub(1, find_start - 1) .. string .. content:sub(find_end + 1)
   end
+  
+  ## local function clean_col(col)
+    #[col]# = trim_wspace(#[col]#)
+    #[col]# = #[col]#:sub(1, # #[col]# - 1)
+    #[col]# = #[col]#:gsub(NEW_LINE_SWAP, "\n")
+    #[col]# = #[col]#:gsub(DELIM_SWAP, actual_delim)
+    local col_match, col_seq = #[col]#:match('^"(.*)"$')
+    if col_match then
+      #[col]# = col_seq[1]
+    end
+    #[col]# = #[col]#:gsub('\\"', '"')
+    #[col]# = #[col]#:gsub("\\n", "\n")
+    #[col]# = #[col]#:gsub("\\r", "\r")
+    #[col]# = #[col]#:gsub("\\z", "\z")
+    #[col]# = #[col]#:gsub("\\0", "\0")
+  ## end
   
   local headers: sequence(string)
   local LINE_MATCH = ("[^%s]*%s"):format(actual_delim, actual_delim)
@@ -40,10 +61,7 @@ local function parse(content: string, delim: facultative(string), header: boolea
     if header then
       if line_no == 1 then
         for col in line:gmatch(LINE_MATCH) do
-          col = trim_wspace(col)
-          col = col:sub(1, #col - 1)
-          col = col:gsub(NEW_LINE_SWAP, "\n")
-          col = col:gsub(DELIM_SWAP, actual_delim)
+          ## clean_col(col)
           if col == "" then
             return false, tbl, "Cannot have empty headers" 
           end
@@ -53,10 +71,7 @@ local function parse(content: string, delim: facultative(string), header: boolea
     end
     local row: hashmap(string, string)
     for col in line:gmatch(LINE_MATCH) do
-      col = trim_wspace(col)
-      col = col:sub(1, #col - 1)
-      col = col:gsub(NEW_LINE_SWAP, "\n")
-      col = col:gsub(DELIM_SWAP, actual_delim)
+      ## clean_col(col)
       if header then
         if line_no ~= 1 then
           row[headers[col_no]] = col
