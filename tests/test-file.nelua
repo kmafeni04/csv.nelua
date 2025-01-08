@@ -20,7 +20,10 @@ local function test_pass(expected: string, file_path: string, delim: facultative
     sb:write("-------\n")
   end
   local str = sb:promote()
-  assert(expected == str, ("Parsed output does not match expected\nEXPECTED:\n%s\nOUTPUT:\n%s"):format(expected, str))
+  assert(
+    expected == str,
+    ("`%s` Parsed output does not match expected\nEXPECTED:\n%s\nOUTPUT:\n%s"):format(file_path, expected, str)
+  )
 end
 
 local function test_fail(input_err: string, file_path: string, delim: facultative(string), header: boolean)
@@ -28,10 +31,14 @@ local function test_fail(input_err: string, file_path: string, delim: facultativ
 
   local ok, tbl, err = csv.parse_file(file_path, delim, header)
   assert(not ok, "Test expected to fail")
-  assert(input_err == err, ("input err does not match expected err\nEXPECTED:\n%s\nINPUT:\n%s"):format(err, input_err))
+  assert(
+    input_err == err,
+    ("`%s` Input error does not match expected error\nEXPECTED:\n%s\nINPUT:\n%s"):format(file_path, err, input_err)
+  )
 end
 
--- Tests that should pass
+-- Tests that should pass --
+
 test_pass([[
 Name: Alice
 Age: 30
@@ -79,5 +86,89 @@ City: Chicago
 -------
 ]], "test-files/missing-fields.csv", nil, true)
 
--- Tests that should fail
+test_pass([[
+Name: Alice
+Age: 30
+City: New York
+-------
+Name: Bob
+Age: 25
+City: San Francisco
+-------
+Name: Charlie
+Age: 35
+City: Chicago
+-------
+]], "test-files/quoted-fields.csv", nil, true)
+
+test_pass([[
+Name: Alice
+Address: 123 Main St
+Apt 4B
+Comment: Loves pizza
+-------
+Name: Bob
+Address: 456 Elm St
+Comment: Enjoys hiking
+-------
+Name: Charlie
+Address: 789 Oak St
+Suite 12
+Comment: Plays guitar
+-------
+]], "test-files/multiline-fields.csv", nil, true)
+
+test_pass([[
+col1: 1
+col2: 2
+col3: 3
+-------
+col1: 4
+col2: 5
+col3: 6
+-------
+col1: 7
+col2: 8
+col3: 9
+-------
+]], "test-files/numbers-only.csv", nil, false)
+
+test_pass([[
+Name: Alice, the Great
+Age: 30
+City: New
+York
+-------
+Name: Bob
+Age: 25
+City: San Francisco
+ CA
+-------
+Name: Charlie
+Age: 35
+City: Chicago "Windy City"
+-------
+]], "test-files/special-characters.csv", nil, true)
+
+test_pass([[
+Full Name: John Smith
+Age: 32
+Home Address: 123 Main St, Apt 4B
+-------
+Full Name: Maria Garcia-Lopez
+Age: 28
+Home Address: 456 Park Avenue, Suite 789
+-------
+Full Name: Robert O'Connor
+Age: 45
+Home Address: 987 Cedar Street
+-------
+]], "test-files/string-headers.csv", nil, true)
+
+----------------------------
+
+-- Tests that should fail --
+
 test_fail("Cannot have empty headers", "test-files/missing-header.csv", nil, true)
+
+----------------------------

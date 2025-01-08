@@ -1,4 +1,5 @@
 Name,Age,City
-"Alice, the Great",30,"New York"
-Bob,25,"San Francisco, CA"
+"Alice, the Great",30,"New\z
+York"
+Bob,25,"San Francisco\n CA"
 Charlie,35,"Chicago \"Windy City\""

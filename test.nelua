@@ -45,20 +45,30 @@ local files: sequence(string) = #[get_files()]#
 
 assert(next(files, 0), "Zero test files found")
 
+local total_tests = 0
+local total_passed = 0
+local total_failed = 0
+
 local failed_tests: sequence(string)
 
 for _, file in ipairs(files) do
   local ok = os.execute(("nelua %s"):format(file))
   if not ok then
     failed_tests:push(file)
+    io.stderr:write(("%s Test: %s failed\n"):format(AnsiColor.new("[ERROR]"):Red():tostring(), file))
+    total_tests = total_tests + 1
+    total_failed = total_failed + 1
+  else
+    print(("%s Test: %s passed"):format(AnsiColor.new("[SUCCESS]"):Green():tostring(), file))
+    total_tests = total_tests + 1
+    total_passed = total_passed + 1
   end
 end
+
+local passed_colored = AnsiColor.new(tostring(total_passed)):Green():tostring()
+local failed_colored = AnsiColor.new(tostring(total_failed)):Red():tostring()
+print(("Total tests: %s, Passed: %s, Failed: %s"):format(total_tests, passed_colored, failed_colored))
 
 if next(failed_tests, 0) then
-  for _, test in ipairs(failed_tests) do
-    io.stderr:write(("%s Test: %s failed\n"):format(AnsiColor.new("[ERROR]"):Red():tostring(), test))
-  end
   os.exit(1)
 end
-
-print(("%s All tests passed"):format(AnsiColor.new("[SUCCESS]"):Green():tostring()))
