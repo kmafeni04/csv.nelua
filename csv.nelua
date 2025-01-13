@@ -99,10 +99,10 @@ local function parse(content: string, delim: facultative(string), header: boolea
   return true, tbl, ""
 end
 
-function csv.parse_file(file: string, delim: facultative(string), header: boolean): (boolean, sequence(hashmap(string, string)), string)
-  local file_prog = io.open(file)
+function csv.parse_file(file_path: string, delim: facultative(string), header: boolean): (boolean, sequence(hashmap(string, string)), string)
+  local file_prog = io.open(file_path)
   if not file_prog:isopen() then
-    return false, (@sequence(hashmap(string, string)))({}), ("Failed to open file: %s"):format(file)
+    return false, (@sequence(hashmap(string, string)))({}), ("Failed to open file: %s"):format(file_path)
   end
   local content = file_prog:read("a")
   return parse(content, delim, header)
