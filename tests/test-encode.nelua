@@ -1,0 +1,92 @@
+require "..csv"
+
+local function test_pass(expected: string, tbl: span(span(string)), delim: facultative(string))
+  local ok, str, err = csv.encode(tbl, delim)
+  assert(ok, ("Encoding failed: %s"):format(err))
+  assert(
+    expected == str,
+    ("Encoded output does not match expected\nEXPECTED:\n%s\nOUTPUT:\n%s"):format(expected, str)
+  )
+end
+
+local function test_fail(input_err: string, tbl: span(span(string)), delim: facultative(string))
+  local ok, str, err = csv.encode(tbl, delim)
+  assert(not ok, "Encoding expected to fail")
+  assert(
+    input_err == err,
+    ("Input error does not match expected error\nEXPECTED:\n%s\nINPUT:\n%s"):format(err, input_err)
+  )
+end
+
+-- TODO: Figure out why it fails to convert
+-- local tbl: [2][3]string = {
+--   {"1","2","3"},
+--   {"4","5","6"}
+-- } 
+
+-- Tests expected to pass
+do
+  local tbl: sequence(span(string))
+  local row1: []string = {"1","2","3"}
+  local row2: []string = {"4","5","6"}
+  tbl:push(row1)
+  tbl:push(row2)
+  test_pass("1,2,3\n4,5,6", tbl, nil)
+end
+
+do
+  local tbl: sequence(span(string))
+  local row1: []string = {"Name","Age","City"}
+  local row2: []string = {"James","20","New York"}
+  local row3: []string = {"Leon","25","New Jersey"}
+  tbl:push(row1)
+  tbl:push(row2)
+  tbl:push(row3)
+  test_pass("Name,Age,City\nJames,20,New York\nLeon,25,New Jersey", tbl, nil)
+end
+
+do
+  local tbl: sequence(span(string))
+  local row1: []string = {"Name","Age","City"}
+  local row2: []string = {"James","20","New York"}
+  local row3: []string = {"Leon","25","\"New Jersey\""}
+  tbl:push(row1)
+  tbl:push(row2)
+  tbl:push(row3)
+  test_pass("Name,Age,City\nJames,20,New York\nLeon,25,\"New Jersey\"", tbl, nil)
+end
+
+do
+  local tbl: sequence(span(string))
+  local row1: []string = {"Name","Age","City"}
+  local row2: []string = {"James","20","New York"}
+  local row3: []string = {"Leon","25","\"New, Jersey\""}
+  tbl:push(row1)
+  tbl:push(row2)
+  tbl:push(row3)
+  test_pass("Name,Age,City\nJames,20,New York\nLeon,25,\"New, Jersey\"", tbl, nil)
+end
+
+do
+  local tbl: sequence(span(string))
+  local row1: []string = {"Name","Age","City"}
+  local row2: []string = {"James","20","New York"}
+  local row3: []string = {"Leon","25","New Jersey"}
+  tbl:push(row1)
+  tbl:push(row2)
+  tbl:push(row3)
+  test_pass("Name|Age|City\nJames|20|New York\nLeon|25|New Jersey", tbl, "|")
+end
+
+-- Tests expected to fail
+do
+  local tbl: sequence(span(string))
+  local row1: []string = {"Name","Age","City"}
+  local row2: []string = {"James","20"}
+  local row3: []string = {"Leon","25","New Jersey"}
+  tbl:push(row1)
+  tbl:push(row2)
+  tbl:push(row3)
+  test_fail("Rows must contain the same amount of entries", tbl, "|")
+end
+
