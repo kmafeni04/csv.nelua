@@ -25,9 +25,9 @@ local function parse(content: string, delim: facultative(string), header: boolea
   local NEW_LINE_SWAP <const> = "\\__n"
 
   -- Unique set of characters to avoid accidental delim swaps
-  local DELIM_SWAP = "__;"
+  local DELIM_SWAP = "\\__;"
   if DELIM_SWAP == actual_delim then
-    DELIM_SWAP = "__,"
+    DELIM_SWAP = "\\__,"
   end
   for string in content:gmatch('%b""') do
     local find_start, find_end = content:find(escape_pattern(string))
@@ -46,9 +46,15 @@ local function parse(content: string, delim: facultative(string), header: boolea
       #[col]# = col_seq[1]
     end
     #[col]# = #[col]#:gsub('\\"', '"')
+    #[col]# = #[col]#:gsub("\\'", "'")
     #[col]# = #[col]#:gsub("\\n", "\n")
+    #[col]# = #[col]#:gsub("\\t", "\t")
     #[col]# = #[col]#:gsub("\\r", "\r")
+    #[col]# = #[col]#:gsub("\\b", "\b")
+    #[col]# = #[col]#:gsub("\\f", "\f")
+    #[col]# = #[col]#:gsub("\\v", "\v")
     #[col]# = #[col]#:gsub("\\z", "\z")
+    #[col]# = #[col]#:gsub("\\\\", "\\")
     #[col]# = #[col]#:gsub("\\0", "\0")
   ## end
   
@@ -107,21 +113,23 @@ function csv.parse_string(content: string, delim: facultative(string), header: b
 end
 
 -- TODO: Handle empty fields better
-function csv.encode(tbl: span(span(string)), delim: facultative(string)): string
+function csv.encode(tbl: span(span(string)), delim: facultative(string)): (boolean, string, string)
   ## if delim.type.is_niltype then
     local actual_delim = ","
   ## else
     local actual_delim = delim
   ## end
   local sb: stringbuilder
-  local row_length = #tbl[1]
-    for _, row in ipairs(tbl) do 
-      assert(row_length == #row, "Rows must contain the same amount of entries")
-      for _, v in pairs(row) do
-        sb:write(v .. actual_delim)
-      end
-      sb:rollback(1)
-      sb:write("\n")
+  local row_length = #tbl[0]
+  for _, row in ipairs(tbl) do 
+    if row_length ~= #row then
+      return false, "", "Rows must contain the same amount of entries"
+    end 
+    for _, v in pairs(row) do
+      sb:write(v .. actual_delim)
     end
-  return sb:promote()
+    sb:rollback(1)
+    sb:write("\n")
+  end
+  return true, sb:promote(), ""
 end
