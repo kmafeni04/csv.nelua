@@ -3,7 +3,7 @@ require "io"
 global csv = @record{}
 
 local function trim_wspace(s: string)
-  local _, str_seq = s:match("%s*(.+)%s*")
+  local _, str_seq = s:match("^%s*(.-)%s*$")
   return str_seq[1]
 end
 
